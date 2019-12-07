@@ -1,1 +1,72 @@
+#Tema 2-ASC(limbaj de programare - MIPS)
+#functie recursiva "modifica" ce transforma, prin intermediul altei functii recursive "suma_patrate", fiecare element X dintr-un vector
+in suma (1^2)+(2^2)+...+((X-1)^2)
 
+.data
+n:.space 4 	#numarul de elemente
+v:.space 400	#stocarea elementelor
+
+.text
+
+modifica:
+subu $sp,4
+sw $fp,0($sp)
+
+addi $fp,$sp,4
+subu $sp,4
+sw #so,0($sp)
+
+
+
+main:
+li $v0,5
+move $v0,$v0
+sw $t0,n
+li $t1,0
+li $t2,0
+
+loop_citire:
+bge $t0,$t1,cont
+
+li $v0,5
+syscall
+
+sw $v0,v($t2)
+addi $t1,$t1,1
+addi $t2,$t2,4
+
+j loop_citire
+
+cont:
+lw $t0,n
+subu $sp,4
+sw $t0,0($sp)
+
+la $t0,v
+subu $sp,4
+sw $t0,0($sp)
+
+jal modifica
+
+#afisarea vectorului
+
+addu $sp,8
+
+li $t1,0
+li $t2,0
+
+loop_afisare:
+bge $t0,$t1,exit
+
+lw $a0,v($t2)
+li $v0,1
+syscall
+
+addi $t1,$t1,1
+addi $t2,$t2,4
+
+j loop_citire
+
+exit:
+li $v0,10
+syscall
