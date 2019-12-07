@@ -1,0 +1,234 @@
+#Tema 1-ASC(limbaj de programare - MIPS)
+#criptarea/decriptarea unui mesaj pe baza unui izomorfism intre (Zp*, "*") si (Zp-1, "+") (unde p-numar prim) creeat de un generator al grupului multiplicativ
+
+
+.data
+p : .space 4 
+vgen : .space 400
+mesaj: .space 101
+criptat: .space 101
+eroare : .asciiz "Input invalid(numarul nu este prim, <= 2 sau > 23)"
+eroare2 : .asciiz "Input2 invalid(caracterele introduse nu fac parte din alfabet - UTILIZATI LITERE MARI)"
+eroare3 : .asciiz "Input3 invalid(caracterele introduse nu fac parte din alfabet - UTILIZATI LITERE MARI)"
+Generator : .asciiz "Generatorul gasit este: "
+nl: .asciiz "\n"
+sp: .asciiz " "
+alfabet: .asciiz "ABCDEFGHIJKLMNOPQRSTUVWXYZ ,." #alfabetul cu care lucrez la punctele 1,2
+
+.text
+
+main:
+
+############   punctul 1(generator)   ##############
+
+li $v0,5
+syscall
+move $t0,$v0
+ble $t0,2,input_incorect  # daca numarul introdus este mai mic decat 2 se considera input incorect
+bgt $t0,29,input_incorect # daca numarul introdus este mai mare decat 23 se considera input incorect
+sw $t0,p #$t0=p
+li $t1,2 #t1 	        # contor care porneste de la 2 pana la p//2
+div $t2,$t0,$t1		# $t2 = p/2
+verificarePrim:
+	bgt $t1, $t2, continuare #-Daca contorul ajunge la p/2 + 1 inseamna ca
+				# p nu are divizori proprii si implicit este prim.
+	remu $t3,$t0,$t1 	#-$t3 reprezinta restul impartirii lui p la $t1.
+	beq $t3,$0,input_incorect #-Daca restul impartirii este 0, atunci p are 
+	addi $t1, $t1, 1	  # cel putin un divizor propriu => nu este prim.
+
+	j verificarePrim
+
+input_incorect:
+	la $a0,eroare	#-Daca numarul citit de la tastatura nu este prim se afiseaza
+	li $v0,4	# mesajul corespunzator si se opreste executia programului
+	syscall
+	li $v0,10
+	syscall
+
+continuare:
+
+	li $t1,1	# $t1 - elementul ce urmeaza a fi testat daca este generator
+			# (este initial 1 pentru ca va fi marit in continuare)
+
+testarea_elementelor:
+	addi $t1,$t1,1	# trecem la urmatorul element
+
+	li $t2,1
+	sw $t2,vgen($0)	# stocam in vector primele 2 elemente (care este egal cu 1)
+	move $t2,$t1	# (care sunt egale cu 1, respectiv valoarea elementului ce urmeaza a fi testat) 
+	li $t3,4
+	sw $t2,vgen($t3)
+
+	li $t2,4 	# contorul necesar pentru stocarea elementelor
+	li $t3,2	# numarul de elemente din vector(initial 2)
+	move $s0,$t1	# puterea care va genera elementele
+	
+	li $t4,1	# $t5=1 si reprezinta prima conditie de oprire
+	move $t5,$t0	# $t5 = p+1 si reprezinta a doua condtitie de oprire
+	addi $t5,$t5,1	# (in caz ca se genereaza mai multe puteri decat este nevoie)
+
+generare:
+	beq $s0,$t4,verificare	# prima conditie de oprire
+	beq $t3,$t5,verificare	# a doua conditie de oprire
+	mul $s0,$s0,$t1		# $s0*=$t1
+	rem $s0,$s0,$t0		# $s0=$s0%$t0	
+	addi $t2,$t2,4		# marim indexul din memorie
+	sw $s0,vgen($t2)	# stocam elementul
+	addi $t3,$t3,1		# marim numarul de elemente
+	
+	j generare
+
+verificare:
+	beq $t0, $t3, initializare_afisare	# daca elementul este generator trecem la afisare
+	j testarea_elementelor			# daca elementul nu este generator trecem la urmatorul
+	
+initializare_afisare:
+	la $a0, Generator
+	li $v0,4
+	syscall					# afisarea generatorului
+	move $a0, $t1
+	li $v0,1
+	syscall
+	la $a0,nl
+	li $v0,4
+	syscall
+
+afisare_elemente:
+	li $t1,0	#indexul obisnuit
+	li $t2,0	#indexul din memorie
+
+loop_afisare:			
+	bge $t1,$t0,citire_mesaj
+	lw $a0, vgen($t2) 
+	li $v0, 1
+	syscall
+	la $a0, sp				#afisarea elementelor din vector
+	li $v0, 4
+	syscall
+	addi $t1, $t1, 1
+	addi $t2, $t2, 4 
+j loop_afisare
+
+
+############   punctul 2(criptare)   ##############
+
+citire_mesaj:
+	la $a0,nl
+	li $v0,4		# se trece la urmatoarea linie pe care se va afisa mesajul criptat
+	syscall
+
+	la $a0,mesaj
+	li $a1,100
+	li $v0,8		# citirea mesajului
+	syscall
+	
+	li $t1,0		# $t1 - pentru parcurgerea sirului citit
+	lb $t2,mesaj($t1)	# $t2 - stocheaza caracterele sirului
+
+parcurgere:
+	beqz $t2,citire_mesaj_criptat 
+	li $t3,0			# pentru parcurgerea alfabetului
+	lb $t4,alfabet($t3)		
+	
+	find:				# cautarea literei in alfabet
+
+	beqz $t4,eroare_2	# in cazul in care litera  nu exista in alfabet se considera input invalid
+	beq $t2,$t4,criptare	# cand se gaseste litera in alfabet se trece la criptare
+	add $t3,$t3,1
+	lb $t4,alfabet($t3)
+	
+	j find
+
+criptare:
+
+	mul $t4,$t3,4		# pozitia in vectorul generat * 4
+	lw $t5,vgen($t4)	# pozitia in alfabet a literei criptate
+
+	lb $a0,alfabet($t5)
+	li $v0,11		# incarcarea pozitiei literei criptate in $a0
+	syscall			# si afisarea acesteia
+
+	add $t1,$t1,1
+	lb $t2,mesaj($t1)
+	
+	j parcurgere
+
+eroare_2:
+	bne $t4,$t0,citire_mesaj_criptat		#############AICI AM INTAMPINAT PROBLEMA#######
+	la $a0,eroare2	#-Daca textul citit este invalid, atunci se afiseaza
+	li $v0,4	# mesajul corespunzator si se opreste executia programului
+	syscall
+	li $v0,10
+	syscall
+
+
+############   punctul 3(decriptare)   ##############
+
+
+citire_mesaj_criptat:
+	la $a0,nl
+	li $v0,4		# '\n' pentru afisarea ulterioara
+	syscall
+
+	la $a0,criptat
+	li $a1,100
+	li $v0,8		# citirea mesajului criptat
+	syscall
+
+	li $t1,0
+	lb $t2,criptat($t1)
+
+parcurgere2:
+	beqz $t2,exit
+	li $t3,0		# pentru parcurgerea alfabetului
+	lb $t4,alfabet($t3)	
+	
+	find2:
+
+	beqz $t4,eroare_3	# in caz de input invalid	
+	beq $t2,$t4,decriptare	# cand se gaseste litera in alfabet se trece la decriptare
+	add $t3,$t3,1
+	lb $t4,alfabet($t3)
+	
+	j find2
+
+decriptare:
+
+	# t3 - pozitia literei de decriptat in alfabet
+	
+	li $t4,1	# contorul obisnuit(incepe de la 1 pentru ca parcurge vectorul vgen, care are p elemente)
+	li $t5,0	# contorul din 4 in 4
+
+	
+	loop_findv:
+
+	beq $t4,$t0,eroare_3
+	lw $t6,vgen($t5)
+	beq $t6,$t3,decriptarepz
+	add $t4,$t4,1
+	add $t5,$t5,4
+	
+	j loop_findv	
+
+
+decriptarepz:
+	subu $t4,$t4,1
+	lb $a0,alfabet($t4) 	# se afiseaza litera corespunzatoare
+	li $v0,11
+	syscall
+
+	add $t1,$t1,1
+	lb $t2,criptat($t1)
+	
+	j parcurgere2
+
+eroare_3:
+	la $a0,eroare3		#-Daca textul citit este invalid, atunci se afiseaza
+	li $v0,4		# mesajul corespunzator si se opreste executia programului
+	syscall
+	li $v0,10
+	syscall
+
+exit:
+	li $v0,10
+	syscall
