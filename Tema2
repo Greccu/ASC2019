@@ -1,6 +1,6 @@
 #Tema 2-ASC(limbaj de programare - MIPS)
 #functie recursiva "modifica" ce transforma, prin intermediul altei functii recursive "suma_patrate", fiecare element X dintr-un vector
-in suma (1^2)+(2^2)+...+((X-1)^2)
+#in suma (1^2)+(2^2)+...+((X-1)^2)
 
 .data
 n:.space 4 	#numarul de elemente
@@ -8,28 +8,127 @@ v:.space 400	#stocarea elementelor
 
 .text
 
+suma_patrate:
+
+subu $sp,4
+sw $fp,0($sp)
+addi $fp,$sp,4
+
+subu $sp,4
+sw $ra,0($sp)
+
+subu $sp,4
+sw $s0,0($sp)
+
+lw $s0,0($fp)
+
+subu $s0,1	# incepem calcularea sumei de la n-1
+
+beqz $s0,exit	# daca numarul = 0 se iese din procedura
+
+mul $s0,$s0,$s0 # $s0=$s0**2
+
+add $s3,$s3,$s0 # $s3+=$s0
+
+subu $sp,4
+sw $s0,0($sp)	# apelam recursiv functia
+
+jal suma_patrate
+
+addu $sp,4
+
+exit:
+
+lw $s0,-12($fp)
+lw $ra,-8($fp)
+lw $fp,-4($fp)
+
+addu $sp,12
+jr $ra
+
+
+
 modifica:
 subu $sp,4
 sw $fp,0($sp)
-
 addi $fp,$sp,4
+
 subu $sp,4
-sw #so,0($sp)
+sw $ra,0($sp)
+
+subu $sp,4		# $s0 - adresa elementului curent din vectorul v
+sw $s0,0($sp)
+
+subu $sp,4		# $s1 - n
+sw $s1,0($sp)
+
+subu $sp,4		# $s2 - elementul curent din vector
+sw $s2,0($sp)	
+
+subu $sp,4		# $s3 - suma puterilor
+sw $s3,0($sp)
+
+#stiva $sp:($s1v)($s0v)($rav)($fpv)$fp:(v)(n)
+
+lw $s0,0($fp)		
+lw $s1,4($fp)		# $s1 - n
+
+beqz $s1,iesire		# daca n curent > 0 se continua procedura, altfel se opreste	 
+
+continua:
+
+
+lw $s2,0($s0)
+
+subu $sp,4
+sw $s2,0($sp)
+
+li $s3,0		# in $s3 va fi calculata suma patratelor
+
+jal suma_patrate
+
+sw 0($s0),$s3
+
+addi $s0,4
+subu $s1,1
+
+subu $sp,4
+sw $s1,0($sp)
+
+subu $sp,4
+sw $s0,0($sp)
+
+jal modifica
+
+addu $sp,8
+
+iesire:
+
+lw $s3,-24($fp)
+lw $s2,-20($fp)
+lw $s1,-16($fp)
+lw $s0,-12($fp)
+lw $ra,-8($fp)
+lw $fp,-4($fp)
+addu $sp,24
+jr $ra
+
+
 
 
 
 main:
 li $v0,5
 move $v0,$v0
-sw $t0,n
+sw $t0,n		#citire n
 li $t1,0
 li $t2,0
 
 loop_citire:
-bge $t0,$t1,cont
+bge $t1,$t0,cont
 
 li $v0,5
-syscall
+syscall			#citire vector
 
 sw $v0,v($t2)
 addi $t1,$t1,1
@@ -37,16 +136,24 @@ addi $t2,$t2,4
 
 j loop_citire
 
+
 cont:
-lw $t0,n
+
+
+subu $sp,4   		#push n
+sw $t0,0($sp)
+
+la $t0,v		#push v
 subu $sp,4
 sw $t0,0($sp)
 
-la $t0,v
-subu $sp,4
-sw $t0,0($sp)
+#$sp:(v)(n)
+
+li $t0,0 		#t0 va fi folosit pentru parcurgerea vectorului in procedura
 
 jal modifica
+
+
 
 #afisarea vectorului
 
